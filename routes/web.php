@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ImageGeneratorController;
+use App\Http\Controllers\PolicyQuestionController;
 use App\Http\Controllers\VideoSummaryController;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -26,9 +27,17 @@ Route::get('summary', function () {
     return Inertia::render('VideoSummary');
 })->middleware(['auth', 'verified'])->name('summary');
 
+Route::get('policy-qa', function () {
+    return Inertia::render('PolicyQa');
+})->middleware(['auth', 'verified'])->name('policy-qa');
+
 Route::post('video-summary', VideoSummaryController::class)
     ->middleware(['auth', 'verified'])
     ->name('video-summary');
+
+Route::post('policy-question', PolicyQuestionController::class)
+    ->middleware(['auth', 'verified'])
+    ->name('policy-question');
 
 Route::post('generate-image', ImageGeneratorController::class)
     ->middleware(['auth', 'verified'])

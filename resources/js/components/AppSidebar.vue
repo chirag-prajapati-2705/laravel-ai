@@ -13,7 +13,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, imageGenerator, summary } from '@/routes';
+import { dashboard, imageGenerator, policyQa, summary } from '@/routes';
 import { type NavItem } from '@/types';
 import AppLogo from './AppLogo.vue';
 
@@ -26,6 +26,11 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Youtube Summary',
         href: summary(),
+        icon: LayoutGrid,
+    },
+    {
+        title: 'Policy Q&A',
+        href: policyQa(),
         icon: LayoutGrid,
     },
     {

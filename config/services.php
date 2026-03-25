@@ -30,6 +30,8 @@ return [
     'gemini' => [
         'key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+        'embeddings_model' => env('GEMINI_EMBEDDINGS_MODEL', 'gemini-embedding-001'),
+        'embeddings_dimension' => env('GEMINI_EMBEDDINGS_DIMENSION', 3072),
     ],
 
     'slack' => [
