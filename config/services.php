@@ -31,7 +31,13 @@ return [
         'key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
         'embeddings_model' => env('GEMINI_EMBEDDINGS_MODEL', 'gemini-embedding-001'),
-        'embeddings_dimension' => env('GEMINI_EMBEDDINGS_DIMENSION', 3072),
+        'embeddings_dimension' => env('GEMINI_EMBEDDINGS_DIMENSION', 768),
+    ],
+    'qdrant' => [
+        'url' => env('QDRANT_URL'),
+        'api_key' => env('QDRANT_API_KEY'),
+        'collection' => env('QDRANT_COLLECTION','rag-system'),
+        'dimension' => env('QDRANT_DIMENSION', 768),
     ],
 
     'slack' => [

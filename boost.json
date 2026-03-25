@@ -2,15 +2,7 @@
     "agents": [
         "codex"
     ],
-    "guidelines": true,
-    "packages": [
-        "laravel/fortify"
-    ],
-    "skills": [
-        "wayfinder-development",
-        "pest-testing",
-        "inertia-vue-development",
-        "tailwindcss-development",
-        "developing-with-fortify"
-    ]
+    "herd_mcp": true,
+    "mcp": true,
+    "sail": false
 }

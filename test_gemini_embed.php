@@ -2,7 +2,7 @@
 
 require __DIR__.'/vendor/autoload.php';
 
-$key = 'AIzaSyB4NBqc2M5jVWhkHjU3sL9IMRRepBE8ehI'; // User's GEMINI API KEY from .env
+$key = ''; // User's GEMINI API KEY from .env
 $model = 'text-embedding-004';
 
 $client = new \GuzzleHttp\Client;

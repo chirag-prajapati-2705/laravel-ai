@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ImageGeneratorController;
 use App\Http\Controllers\PolicyQuestionController;
+use App\Http\Controllers\RagQuestionController;
 use App\Http\Controllers\VideoSummaryController;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,10 @@ Route::get('policy-qa', function () {
     return Inertia::render('PolicyQa');
 })->middleware(['auth', 'verified'])->name('policy-qa');
 
+Route::get('rag-qa', function () {
+    return Inertia::render('RagQa');
+})->middleware(['auth', 'verified'])->name('rag-qa');
+
 Route::post('video-summary', VideoSummaryController::class)
     ->middleware(['auth', 'verified'])
     ->name('video-summary');
@@ -38,6 +43,10 @@ Route::post('video-summary', VideoSummaryController::class)
 Route::post('policy-question', PolicyQuestionController::class)
     ->middleware(['auth', 'verified'])
     ->name('policy-question');
+
+Route::post('rag-question', RagQuestionController::class)
+    ->middleware(['auth', 'verified'])
+    ->name('rag-question');
 
 Route::post('generate-image', ImageGeneratorController::class)
     ->middleware(['auth', 'verified'])

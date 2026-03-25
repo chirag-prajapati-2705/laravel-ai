@@ -13,7 +13,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, imageGenerator, policyQa, summary } from '@/routes';
+import { dashboard, imageGenerator, policyQa, ragQa, summary } from '@/routes';
 import { type NavItem } from '@/types';
 import AppLogo from './AppLogo.vue';
 
@@ -31,6 +31,11 @@ const mainNavItems: NavItem[] = [
     {
         title: 'Policy Q&A',
         href: policyQa(),
+        icon: LayoutGrid,
+    },
+    {
+        title: 'RAG Q&A',
+        href: ragQa(),
         icon: LayoutGrid,
     },
     {
