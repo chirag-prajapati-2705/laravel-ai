@@ -12,7 +12,6 @@ class RagService
 {
     public function __construct(
         private GeminiClient $geminiClient,
-        private QdrantClient $qdrantClient,
     ) {}
 
     public function ingest(bool $recreateCollection = false): int
@@ -25,7 +24,7 @@ class RagService
         }));
 
         if ($paths === []) {
-            throw new RuntimeException('No RAG documents found in storage/app/rag.');
+            return 0; // Don't throw error here to allow other document types or empty starts
         }
 
         $documents = [];
@@ -49,17 +48,17 @@ class RagService
     /**
      * @return array{answer: string, sources: array<int, string>}
      */
-    public function answer(string $question): array
+    public function answer(string $question, ?int $knowledgeBaseFileId = null): array
     {
         $embedding = $this->geminiClient->embedText($question);
-        $matches = $this->retrieveSimilarChunks($embedding);
+        $matches = $this->retrieveSimilarChunks($embedding, $knowledgeBaseFileId);
 
         if ($matches->isEmpty()) {
-            throw new RuntimeException('No RAG chunks are available. Run the rag:ingest command first.');
+            throw new RuntimeException('No RAG chunks match your question. Please upload more relevant documents.');
         }
 
         $context = $matches
-            ->map(fn (array $chunk): string => $chunk['content'])
+            ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->content)
             ->implode("\n\n");
 
         $prompt = $this->buildPrompt($question, $context);
@@ -68,7 +67,7 @@ class RagService
         return [
             'answer' => $answer,
             'sources' => $matches
-                ->map(fn (array $chunk): string => $chunk['source'].'#'.$chunk['chunk_index'])
+                ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->source.'#'.$chunk->chunk_index)
                 ->values()
                 ->all(),
         ];
@@ -77,32 +76,34 @@ class RagService
     /**
      * @param  array<int, array{source: string, content: string}>  $documents
      */
-    public function ingestDocuments(array $documents, bool $recreateCollection = false): int
+    public function ingestDocuments(array $documents, bool $recreateCollection = false, ?int $knowledgeBaseFileId = null): int
     {
         if ($documents === []) {
-            throw new RuntimeException('No documents were provided for ingestion.');
+            return 0;
         }
+
         if ($recreateCollection) {
-            $this->qdrantClient->recreateCollection();
+            \App\Models\RagChunk::query()->delete();
         }
-        
+
         $count = 0;
 
         foreach ($documents as $document) {
             $chunks = $this->chunkText($document['content']);
-            $payloads = [];
+
             foreach ($chunks as $index => $chunk) {
                 $embedding = $this->geminiClient->embedText($chunk);
-                $payloads[] = [
+
+                \App\Models\RagChunk::create([
+                    'knowledge_base_file_id' => $knowledgeBaseFileId,
                     'source' => $document['source'],
                     'chunk_index' => $index,
                     'content' => $chunk,
-                    'embedding' => $embedding,
-                ];
+                    'embedding' => '['.implode(',', $embedding).']',
+                ]);
+
                 $count++;
             }
-
-            $this->qdrantClient->upsertChunks($payloads);
         }
 
         return $count;
@@ -136,16 +137,29 @@ class RagService
     }
 
     /**
-     * @return Collection<int, array{source: string, chunk_index: int, content: string}>
+     * @return Collection<int, \App\Models\RagChunk>
      */
-    private function retrieveSimilarChunks(array $queryEmbedding): Collection
+    private function retrieveSimilarChunks(array $queryEmbedding, ?int $knowledgeBaseFileId = null): Collection
     {
         $maxResults = (int) config('rag.max_results', 4);
         $minSimilarity = (float) config('rag.min_similarity', 0.2);
 
-        $results = $this->qdrantClient->search($queryEmbedding, $maxResults, $minSimilarity);
+        $vectorString = '['.implode(',', $queryEmbedding).']';
 
-        return collect($results);
+        // PostgreSQL pgvector cosine similarity search
+        $query = \App\Models\RagChunk::query()
+            ->select('*')
+            ->selectRaw('1 - (embedding <=> ?) as similarity', [$vectorString])
+            ->whereRaw('1 - (embedding <=> ?) >= ?', [$vectorString, $minSimilarity]);
+
+        if ($knowledgeBaseFileId !== null) {
+            $query->where('knowledge_base_file_id', $knowledgeBaseFileId);
+        }
+
+        return $query
+            ->orderBy('similarity', 'desc')
+            ->limit($maxResults)
+            ->get();
     }
 
     private function buildPrompt(string $question, string $context): string
