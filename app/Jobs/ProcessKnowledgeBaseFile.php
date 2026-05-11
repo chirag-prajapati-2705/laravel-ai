@@ -10,6 +10,21 @@ class ProcessKnowledgeBaseFile implements ShouldQueue
     use Queueable;
 
     /**
+     * Maximum number of attempts before the job is marked as failed.
+     */
+    public int $tries = 3;
+
+    /**
+     * Maximum seconds the job may run before it is killed.
+     */
+    public int $timeout = 300;
+
+    /**
+     * Seconds to wait before retrying after a failure.
+     */
+    public int $backoff = 60;
+
+    /**
      * Create a new job instance.
      */
     public function __construct(

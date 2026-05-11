@@ -17,7 +17,10 @@ class KnowledgeBaseFileFactory extends Factory
     public function definition(): array
     {
         return [
-            //
+            'name' => fake()->slug().'.pdf',
+            'path' => 'knowledge-base/'.fake()->uuid().'.pdf',
+            'size' => fake()->numberBetween(1024, 1024 * 1024),
+            'status' => 'completed',
         ];
     }
 }

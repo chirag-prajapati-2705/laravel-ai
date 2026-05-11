@@ -4,6 +4,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ImageGeneratorController;
 use App\Http\Controllers\KnowledgeBaseController;
 use App\Http\Controllers\KnowledgeBaseUploadController;
+use App\Http\Controllers\MultiChatController;
 use App\Http\Controllers\PolicyQuestionController;
 use App\Http\Controllers\RagQuestionController;
 use App\Http\Controllers\VideoSummaryController;
@@ -59,6 +60,18 @@ Route::delete('knowledge-base/{file}', [KnowledgeBaseController::class, 'destroy
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('chat/history', [ChatController::class, 'history'])
         ->name('chat.history');
+
+    Route::get('chat/multi', [MultiChatController::class, 'show'])
+        ->name('chat.multi');
+
+    Route::get('chat/multi/session/{session}', [MultiChatController::class, 'show'])
+        ->name('chat.multi.session');
+
+    Route::post('chat/multi/send', [MultiChatController::class, 'sendMessage'])
+        ->name('chat.multi.send');
+
+    Route::post('chat/multi/stream', [MultiChatController::class, 'streamMessage'])
+        ->name('chat.multi.stream');
 
     Route::get('chat/{file}', [ChatController::class, 'show'])
         ->name('chat.show');

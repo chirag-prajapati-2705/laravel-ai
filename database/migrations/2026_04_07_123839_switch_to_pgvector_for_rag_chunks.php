@@ -12,14 +12,20 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('CREATE EXTENSION IF NOT EXISTS vector');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('CREATE EXTENSION IF NOT EXISTS vector');
+        }
 
         Schema::table('rag_chunks', function (Blueprint $table) {
             $table->dropColumn('embedding');
         });
 
         Schema::table('rag_chunks', function (Blueprint $table) {
-            $table->vector('embedding', 768)->nullable();
+            if (DB::getDriverName() === 'pgsql') {
+                $table->vector('embedding', 768)->nullable();
+            } else {
+                $table->text('embedding')->nullable();
+            }
         });
     }
 

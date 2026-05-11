@@ -49,11 +49,11 @@ const mainNavItems: NavItem[] = [
         href: documents(),
         icon: Folder,
     },
-    {
-        title: 'Knowledge Base',
-        href: knowledgeBase(),
-        icon: BookOpen,
-    },
+    // {
+    //     title: 'Knowledge Base',
+    //     href: knowledgeBase(),
+    //     icon: BookOpen,
+    // },
     {
         title: 'Chat History',
         href: chatHistory(),
@@ -62,16 +62,7 @@ const mainNavItems: NavItem[] = [
 ];
 
 const footerNavItems: NavItem[] = [
-    {
-        title: 'Github Repo',
-        href: 'https://github.com/laravel/vue-starter-kit',
-        icon: Folder,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#vue',
-        icon: BookOpen,
-    },
+    
 ];
 </script>
 

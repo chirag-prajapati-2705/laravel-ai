@@ -16,7 +16,11 @@ return new class extends Migration
         });
 
         Schema::table('rag_chunks', function (Blueprint $table) {
-            $table->vector('embedding', 3072)->nullable();
+            if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
+                $table->vector('embedding', 3072)->nullable();
+            } else {
+                $table->text('embedding')->nullable();
+            }
         });
     }
 

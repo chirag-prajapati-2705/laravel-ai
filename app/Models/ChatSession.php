@@ -38,6 +38,14 @@ class ChatSession extends Model
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany<KnowledgeBaseFile, $this>
+     */
+    public function knowledgeBaseFiles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(KnowledgeBaseFile::class, 'chat_session_knowledge_base_file');
+    }
+
+    /**
      * @return HasMany<ChatMessage, $this>
      */
     public function messages(): HasMany

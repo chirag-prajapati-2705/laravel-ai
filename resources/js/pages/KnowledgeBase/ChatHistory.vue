@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import { BookOpen, History, MessageSquare, Trash2 } from 'lucide-vue-next';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { knowledgeBase } from '@/routes';
-import { history as chatHistory, session as chatSession } from '@/routes/chat';
+import { history as chatHistory, session as chatSession, multi as multiChat } from '@/routes/chat';
 import { destroy as destroySession } from '@/routes/chat/session';
 import { type BreadcrumbItem } from '@/types';
 
@@ -79,7 +79,7 @@ function formatDate(value: string): string {
                         class="group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition overflow-hidden"
                     >
                         <Link 
-                            :href="chatSession({ file: session.fileId, session: session.id }).url"
+                            :href="session.fileId ? chatSession({ file: session.fileId, session: session.id }).url : multiChat.session(session.id).url"
                             class="block p-5"
                         >
                             <div class="flex items-start justify-between gap-4 mb-3">

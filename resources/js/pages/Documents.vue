@@ -20,7 +20,7 @@ import {
 import AppLayout from '@/layouts/AppLayout.vue';
 import { documents, knowledgeBase, knowledgeBaseUpload } from '@/routes';
 import { destroy as destroyFile } from '@/routes/knowledge-base';
-import { show as showChat } from '@/routes/chat';
+import { show as showChat, multi as multiChat } from '@/routes/chat';
 import { type BreadcrumbItem } from '@/types';
 import {
     Dialog,
@@ -197,6 +197,30 @@ function deleteFile(id: number): void {
     }
 }
 
+const selectedIds = ref<number[]>([]);
+
+function toggleSelection(id: number): void {
+    const index = selectedIds.value.indexOf(id);
+    if (index === -1) {
+        selectedIds.value.push(id);
+    } else {
+        selectedIds.value.splice(index, 1);
+    }
+}
+
+function toggleAll(files: KnowledgeBaseFile[]): void {
+    if (selectedIds.value.length === files.length) {
+        selectedIds.value = [];
+    } else {
+        selectedIds.value = files.map((f) => f.id);
+    }
+}
+
+function startMultiChat(): void {
+    if (selectedIds.value.length === 0) return;
+    router.get(multiChat().url, { files: selectedIds.value });
+}
+
 const isUploadModalOpen = ref(false);
 const uploadForm = useForm<{ file: File | null }>({
     file: null,
@@ -247,7 +271,7 @@ function submitUpload(): void {
                 <!-- Header -->
                 <div class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
                     <div class="space-y-2">
-                        <h1 class="font-heading text-3xl font-extrabold tracking-tight">Document Library</h1>
+                        <h1 class="font-heading text-3xl font-extrabold tracking-tight">Document</h1>
                         <div class="glow-line w-32"></div>
                         <p class="text-sm text-muted-foreground">
                             Manage, search and interact with your uploaded documents.
@@ -381,6 +405,16 @@ function submitUpload(): void {
                         <table class="min-w-[880px] w-full border-collapse">
                             <thead>
                                 <tr class="border-b border-border/30">
+                                    <th class="px-6 py-4 w-12 text-left">
+                                        <div class="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                class="h-4 w-4 rounded border-border text-primary focus:ring-primary bg-card/30"
+                                                :checked="selectedIds.length === filteredFiles.length && filteredFiles.length > 0"
+                                                @change="toggleAll(filteredFiles)"
+                                            />
+                                        </div>
+                                    </th>
                                     <th class="px-6 py-4 text-left text-[10px] font-semibold uppercase tracking-[0.28em] text-muted-foreground">
                                         Document
                                     </th>
@@ -403,7 +437,18 @@ function submitUpload(): void {
                                     v-for="file in filteredFiles"
                                     :key="file.id"
                                     class="group row-glow border-b border-border/20 transition-all duration-300 last:border-b-0"
+                                    :class="selectedIds.includes(file.id) ? 'bg-primary/[0.03]' : ''"
                                 >
+                                    <td class="px-6 py-4">
+                                        <div class="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                class="h-4 w-4 rounded border-border text-primary focus:ring-primary bg-card/30"
+                                                :checked="selectedIds.includes(file.id)"
+                                                @change="toggleSelection(file.id)"
+                                            />
+                                        </div>
+                                    </td>
                                     <td class="px-6 py-4">
                                         <div class="flex items-center gap-4">
                                             <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary/15 group-hover:shadow-[0_0_16px_rgba(59,130,246,0.15)]">
@@ -543,5 +588,50 @@ function submitUpload(): void {
                 </div>
             </DialogContent>
         </Dialog>
+
+        <!-- Floating Action Bar for Multi-selection -->
+        <Transition
+            enter-active-class="transition duration-300 ease-out"
+            enter-from-class="translate-y-20 opacity-0"
+            enter-to-class="translate-y-0 opacity-100"
+            leave-active-class="transition duration-200 ease-in"
+            leave-from-class="translate-y-0 opacity-100"
+            leave-to-class="translate-y-20 opacity-0"
+        >
+            <div v-if="selectedIds.length > 0" class="fixed bottom-10 left-1/2 z-50 -translate-x-1/2">
+                <div class="flex items-center gap-6 rounded-[2rem] border border-primary/20 bg-background/80 px-8 py-4 shadow-[0_20px_50px_rgba(0,0,0,0.3)] backdrop-blur-xl">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+                            <span class="text-sm font-bold">{{ selectedIds.length }}</span>
+                        </div>
+                        <div class="flex flex-col">
+                            <span class="text-sm font-bold text-foreground">Documents selected</span>
+                            <span class="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Ready for cross-doc chat</span>
+                        </div>
+                    </div>
+
+                    <div class="h-10 w-px bg-border/50"></div>
+
+                    <div class="flex items-center gap-3">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            class="rounded-xl text-muted-foreground hover:text-foreground"
+                            @click="selectedIds = []"
+                        >
+                            <X class="mr-2 h-4 w-4" />
+                            Clear
+                        </Button>
+                        <Button
+                            @click="startMultiChat"
+                            class="gradient-button flex items-center gap-2 rounded-xl px-6"
+                        >
+                            <Sparkles class="h-4 w-4" />
+                            Start Cross-Doc Chat
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </Transition>
     </AppLayout>
 </template>

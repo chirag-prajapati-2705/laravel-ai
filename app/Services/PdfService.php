@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
-use Smalot\PdfParser\Parser;
+use Spatie\PdfToText\Pdf;
 use Throwable;
 
 class PdfService
@@ -12,10 +12,13 @@ class PdfService
     public function extractText(string $path): string
     {
         try {
-            $parser = new Parser;
-            $pdf = $parser->parseFile($path);
+            $binPath = config('app.pdftotext_path');
 
-            return $pdf->getText();
+            if ($binPath) {
+                return (new Pdf($binPath))->setPdf($path)->text();
+            }
+
+            return Pdf::getText($path);
         } catch (Throwable $e) {
             return '';
         }

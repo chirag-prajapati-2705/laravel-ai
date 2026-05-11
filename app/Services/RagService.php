@@ -48,7 +48,7 @@ class RagService
     /**
      * @return array{answer: string, sources: array<int, string>}
      */
-    public function answer(string $question, ?int $knowledgeBaseFileId = null): array
+    public function answer(string $question, int|array|null $knowledgeBaseFileId = null): array
     {
         $embedding = $this->geminiClient->embedText($question);
         $matches = $this->retrieveSimilarChunks($embedding, $knowledgeBaseFileId);
@@ -73,6 +73,39 @@ class RagService
         ];
     }
 
+    public function streamAnswer(string $question, callable $onChunk, int|array|null $knowledgeBaseFileId = null, ?callable $onThinking = null): array
+    {
+        if ($onThinking) {
+            $onThinking('🔍 Searching knowledge base...');
+        }
+
+        $embedding = $this->geminiClient->embedText($question);
+        $matches = $this->retrieveSimilarChunks($embedding, $knowledgeBaseFileId);
+
+        if ($matches->isEmpty()) {
+            throw new RuntimeException('No RAG chunks match your question. Please upload more relevant documents.');
+        }
+
+        if ($onThinking) {
+            $onThinking('📊 Analyzing '.$matches->count().' matching snippets...');
+        }
+
+        $context = $matches
+            ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->content)
+            ->implode("\n\n");
+
+        $prompt = $this->buildPrompt($question, $context);
+
+        $this->geminiClient->streamGenerateContent($prompt, $onChunk);
+
+        return [
+            'sources' => $matches
+                ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->source.'#'.$chunk->chunk_index)
+                ->values()
+                ->all(),
+        ];
+    }
+
     /**
      * @param  array<int, array{source: string, content: string}>  $documents
      */
@@ -87,22 +120,30 @@ class RagService
         }
 
         $count = 0;
+        $batchSize = 50; // Process 50 chunks at a time
 
         foreach ($documents as $document) {
             $chunks = $this->chunkText($document['content']);
 
-            foreach ($chunks as $index => $chunk) {
-                $embedding = $this->geminiClient->embedText($chunk);
+            $chunkBatches = array_chunk($chunks, $batchSize);
 
-                \App\Models\RagChunk::create([
-                    'knowledge_base_file_id' => $knowledgeBaseFileId,
-                    'source' => $document['source'],
-                    'chunk_index' => $index,
-                    'content' => $chunk,
-                    'embedding' => '['.implode(',', $embedding).']',
-                ]);
+            foreach ($chunkBatches as $batchIndex => $chunkBatch) {
+                $embeddings = $this->geminiClient->batchEmbedTexts($chunkBatch);
 
-                $count++;
+                foreach ($chunkBatch as $indexInBatch => $chunk) {
+                    $globalIndex = ($batchIndex * $batchSize) + $indexInBatch;
+                    $embedding = $embeddings[$indexInBatch];
+
+                    \App\Models\RagChunk::create([
+                        'knowledge_base_file_id' => $knowledgeBaseFileId,
+                        'source' => $document['source'],
+                        'chunk_index' => $globalIndex,
+                        'content' => $chunk,
+                        'embedding' => '['.implode(',', $embedding).']',
+                    ]);
+
+                    $count++;
+                }
             }
         }
 
@@ -139,7 +180,7 @@ class RagService
     /**
      * @return Collection<int, \App\Models\RagChunk>
      */
-    private function retrieveSimilarChunks(array $queryEmbedding, ?int $knowledgeBaseFileId = null): Collection
+    private function retrieveSimilarChunks(array $queryEmbedding, int|array|null $knowledgeBaseFileId = null): Collection
     {
         $maxResults = (int) config('rag.max_results', 4);
         $minSimilarity = (float) config('rag.min_similarity', 0.2);
@@ -153,7 +194,11 @@ class RagService
             ->whereRaw('1 - (embedding <=> ?) >= ?', [$vectorString, $minSimilarity]);
 
         if ($knowledgeBaseFileId !== null) {
-            $query->where('knowledge_base_file_id', $knowledgeBaseFileId);
+            if (is_array($knowledgeBaseFileId)) {
+                $query->whereIn('knowledge_base_file_id', $knowledgeBaseFileId);
+            } else {
+                $query->where('knowledge_base_file_id', $knowledgeBaseFileId);
+            }
         }
 
         return $query
