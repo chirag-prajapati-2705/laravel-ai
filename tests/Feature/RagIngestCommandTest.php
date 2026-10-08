@@ -1,32 +1,29 @@
 <?php
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\Embeddings;
 
 test('rag ingest indexes static documents', function () {
     Storage::fake('rag');
     Storage::disk('rag')->put('rag/guide.txt', 'Laravel is a PHP framework.');
 
-    Http::fake([
-        'https://generativelanguage.googleapis.com/v1beta/models/*:embedContent*' => Http::response([
-            'embedding' => [
-                'values' => [0.1, 0.2, 0.3],
-            ],
-        ], 200),
-        'https://qdrant.test/collections/policy-doc' => Http::response(['result' => true], 200),
-        'https://qdrant.test/collections/policy-doc/points*' => Http::response(['result' => true], 200),
+    Embeddings::fake([
+        [[0.1, 0.2, 0.3]],
     ]);
 
     config([
-        'services.gemini.key' => 'test-key',
-        'services.qdrant.url' => 'https://qdrant.test',
-        'services.qdrant.api_key' => 'qdrant-key',
-        'services.qdrant.collection' => 'policy-doc',
-        'services.qdrant.dimension' => 3,
+        'services.gemini.embeddings_dimension' => 3,
     ]);
 
     $this->artisan('rag:ingest --recreate')
         ->assertExitCode(0);
 
-    $this->assertDatabaseCount('rag_chunks', 0);
+    $this->assertDatabaseCount('rag_chunks', 1);
+
+    $chunk = \App\Models\RagChunk::query()->firstOrFail();
+
+    expect($chunk->source)->toBe('rag/guide.txt')
+        ->and($chunk->chunk_index)->toBe(0)
+        ->and($chunk->content)->toBe('Laravel is a PHP framework.')
+        ->and($chunk->embedding)->toBe('[0.1,0.2,0.3]');
 });

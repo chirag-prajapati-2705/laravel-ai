@@ -1,0 +1,105 @@
+@layer utilities {
+    .glass-surface {
+        @apply bg-background/80 backdrop-blur-xl border border-border/50;
+    }
+
+    .glass-card {
+        @apply bg-card/40 backdrop-blur-lg border border-border/40;
+    }
+
+    .glass-stat {
+        @apply bg-card/30 backdrop-blur-xl border border-white/[0.06] rounded-2xl;
+        box-shadow:
+            0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+            0 4px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    .minimal-card {
+        @apply bg-card border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300;
+    }
+
+    .pro-button {
+        @apply px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 active:scale-95;
+    }
+
+    .gradient-button {
+        @apply px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 active:scale-95;
+        background: linear-gradient(135deg, var(--primary), hsl(239 84% 67%));
+        color: white;
+        box-shadow:
+            0 4px 16px rgba(99, 102, 241, 0.3),
+            0 0 0 1px rgba(99, 102, 241, 0.15) inset;
+    }
+
+    .gradient-button:hover {
+        box-shadow:
+            0 6px 24px rgba(99, 102, 241, 0.45),
+            0 0 0 1px rgba(99, 102, 241, 0.2) inset;
+        transform: translateY(-1px);
+    }
+
+    .accent-glow {
+        @apply shadow-lg shadow-primary/10;
+    }
+
+    .text-glow {
+        /* Minimal: no text glow for professional feel */
+    }
+
+    .glow-line {
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--primary), hsl(239 84% 67%), transparent);
+        opacity: 0.6;
+    }
+
+    .glow-badge-green {
+        @apply border-emerald-500/20 bg-emerald-500/10 text-emerald-400;
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.15);
+    }
+
+    .glow-badge-amber {
+        @apply border-amber-500/20 bg-amber-500/10 text-amber-400;
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+    }
+
+    .glow-badge-red {
+        @apply border-red-500/20 bg-red-500/10 text-red-400;
+        box-shadow: 0 0 12px rgba(239, 68, 68, 0.15);
+    }
+
+    .row-glow:hover {
+        background: linear-gradient(90deg, rgba(59, 130, 246, 0.04), rgba(99, 102, 241, 0.06), rgba(59, 130, 246, 0.03));
+    }
+
+    .filter-pill {
+        @apply px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all duration-200 cursor-pointer border;
+    }
+
+    .filter-pill-active {
+        @apply bg-primary/15 text-primary border-primary/30;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+    }
+
+    .filter-pill-inactive {
+        @apply bg-transparent text-muted-foreground border-border/50 hover:border-primary/20 hover:text-foreground;
+    }
+
+    .gradient-border {
+        border: 1px solid transparent;
+        background: linear-gradient(var(--card), var(--card)) padding-box,
+                    linear-gradient(135deg, var(--primary), var(--secondary)) border-box;
+    }
+
+    .synapse-gradient {
+        @apply bg-primary text-primary-foreground;
+        /* Minimal: Using solid primary or very subtle gradient for professional feel */
+    }
+
+    .synapse-gradient-text {
+        @apply bg-clip-text text-transparent bg-gradient-to-br from-primary to-primary/80;
+    }
+
+    .nav-item-active {
+        @apply bg-primary/10 text-primary border-r-2 border-primary;
+    }
+}

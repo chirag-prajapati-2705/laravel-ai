@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RagChunk extends Model
 {
@@ -16,6 +17,7 @@ class RagChunk extends Model
      * @var array<int, string>
      */
     protected $fillable = [
+        'knowledge_base_file_id',
         'source',
         'chunk_index',
         'content',
@@ -28,7 +30,15 @@ class RagChunk extends Model
     protected function casts(): array
     {
         return [
-            'embedding' => 'array',
+            // 'embedding' => 'array',
         ];
+    }
+
+    /**
+     * @return BelongsTo<KnowledgeBaseFile, $this>
+     */
+    public function knowledgeBaseFile(): BelongsTo
+    {
+        return $this->belongsTo(KnowledgeBaseFile::class);
     }
 }

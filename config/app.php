@@ -123,4 +123,6 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    'pdftotext_path' => env('PDFTOTEXT_PATH', 'C:\poppler\Library\bin\pdftotext'),
+
 ];
