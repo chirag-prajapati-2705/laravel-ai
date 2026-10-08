@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\RagChunk;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Ai\AnonymousAgent;
+use Laravel\Ai\Embeddings;
+use Laravel\Ai\Reranking;
+use Laravel\Ai\Responses\Data\RankedDocument;
+use Laravel\Ai\Streaming\Events\TextDelta;
 use RuntimeException;
 
 class RagService
 {
     public function __construct(
-        private GeminiClient $geminiClient,
+        private TextSplitter $textSplitter,
     ) {}
 
     public function ingest(bool $recreateCollection = false): int
@@ -50,24 +56,30 @@ class RagService
      */
     public function answer(string $question, int|array|null $knowledgeBaseFileId = null): array
     {
-        $embedding = $this->geminiClient->embedText($question);
-        $matches = $this->retrieveSimilarChunks($embedding, $knowledgeBaseFileId);
+        $embedding = $this->embedText($question);
+
+        // Retrieve more for reranking (top 20)
+        $matches = $this->retrieveSimilarChunks($embedding, $knowledgeBaseFileId, 20);
 
         if ($matches->isEmpty()) {
             throw new RuntimeException('No RAG chunks match your question. Please upload more relevant documents.');
         }
 
-        $context = $matches
-            ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->content)
+        // Rerank to top 4 for the context
+        $rerankedMatches = $this->rerankMatches($question, $matches, 4);
+
+        $context = $rerankedMatches
+            ->map(fn (RagChunk $chunk): string => $chunk->content)
             ->implode("\n\n");
 
         $prompt = $this->buildPrompt($question, $context);
-        $answer = $this->geminiClient->generateText($prompt);
+
+        $response = (new AnonymousAgent('', [], []))->prompt($prompt);
 
         return [
-            'answer' => $answer,
-            'sources' => $matches
-                ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->source.'#'.$chunk->chunk_index)
+            'answer' => trim($response->text),
+            'sources' => $rerankedMatches
+                ->map(fn (RagChunk $chunk): string => $chunk->source.'#'.$chunk->chunk_index)
                 ->values()
                 ->all(),
         ];
@@ -79,31 +91,57 @@ class RagService
             $onThinking('🔍 Searching knowledge base...');
         }
 
-        $embedding = $this->geminiClient->embedText($question);
-        $matches = $this->retrieveSimilarChunks($embedding, $knowledgeBaseFileId);
+        $embedding = $this->embedText($question);
+
+        // Retrieve more for reranking
+        $matches = $this->retrieveSimilarChunks($embedding, $knowledgeBaseFileId, 20);
 
         if ($matches->isEmpty()) {
             throw new RuntimeException('No RAG chunks match your question. Please upload more relevant documents.');
         }
 
         if ($onThinking) {
-            $onThinking('📊 Analyzing '.$matches->count().' matching snippets...');
+            $onThinking('📊 Reranking '.$matches->count().' matching snippets for precision...');
         }
 
-        $context = $matches
-            ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->content)
+        // Rerank to top 4
+        $rerankedMatches = $this->rerankMatches($question, $matches, 4);
+
+        $context = $rerankedMatches
+            ->map(fn (RagChunk $chunk): string => $chunk->content)
             ->implode("\n\n");
 
         $prompt = $this->buildPrompt($question, $context);
 
-        $this->geminiClient->streamGenerateContent($prompt, $onChunk);
+        (new AnonymousAgent('', [], []))->stream($prompt)->each(function ($event) use ($onChunk) {
+            if ($event instanceof TextDelta) {
+                $onChunk($event->delta);
+            }
+        });
 
         return [
-            'sources' => $matches
-                ->map(fn (\App\Models\RagChunk $chunk): string => $chunk->source.'#'.$chunk->chunk_index)
+            'sources' => $rerankedMatches
+                ->map(fn (RagChunk $chunk): string => $chunk->source.'#'.$chunk->chunk_index)
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * @param  Collection<int, RagChunk>  $matches
+     * @return Collection<int, RagChunk>
+     */
+    private function rerankMatches(string $query, Collection $matches, int $limit): Collection
+    {
+        if ($matches->isEmpty()) {
+            return $matches;
+        }
+
+        $response = Reranking::of($matches->pluck('content')->all())
+            ->limit($limit)
+            ->rerank($query);
+
+        return $response->collect()->map(fn (RankedDocument $result) => $matches->values()[$result->index]);
     }
 
     /**
@@ -116,7 +154,7 @@ class RagService
         }
 
         if ($recreateCollection) {
-            \App\Models\RagChunk::query()->delete();
+            RagChunk::query()->delete();
         }
 
         $count = 0;
@@ -128,13 +166,13 @@ class RagService
             $chunkBatches = array_chunk($chunks, $batchSize);
 
             foreach ($chunkBatches as $batchIndex => $chunkBatch) {
-                $embeddings = $this->geminiClient->batchEmbedTexts($chunkBatch);
+                $embeddings = $this->embedTexts($chunkBatch);
 
                 foreach ($chunkBatch as $indexInBatch => $chunk) {
                     $globalIndex = ($batchIndex * $batchSize) + $indexInBatch;
                     $embedding = $embeddings[$indexInBatch];
 
-                    \App\Models\RagChunk::create([
+                    RagChunk::create([
                         'knowledge_base_file_id' => $knowledgeBaseFileId,
                         'source' => $document['source'],
                         'chunk_index' => $globalIndex,
@@ -151,44 +189,50 @@ class RagService
     }
 
     /**
+     * @return array<int, float>
+     */
+    private function embedText(string $text): array
+    {
+        return Embeddings::for([$text])->generate()->first();
+    }
+
+    /**
+     * @param  array<int, string>  $texts
+     * @return array<int, array<int, float>>
+     */
+    private function embedTexts(array $texts): array
+    {
+        if ($texts === []) {
+            return [];
+        }
+
+        return Embeddings::for($texts)->generate()->embeddings;
+    }
+
+    /**
      * @return array<int, string>
      */
     private function chunkText(string $text): array
     {
-        $chunkSize = (int) config('rag.chunk_size', 1000);
-        $overlap = (int) config('rag.chunk_overlap', 200);
-
-        if ($chunkSize <= 0) {
-            return [$text];
-        }
-
-        $step = max(1, $chunkSize - $overlap);
-        $length = strlen($text);
-        $chunks = [];
-
-        for ($start = 0; $start < $length; $start += $step) {
-            $chunk = trim(substr($text, $start, $chunkSize));
-
-            if ($chunk !== '') {
-                $chunks[] = $chunk;
-            }
-        }
-
-        return $chunks;
+        return $this->textSplitter->split(
+            $text,
+            (int) config('rag.chunk_size', 1000),
+            (int) config('rag.chunk_overlap', 200)
+        );
     }
 
     /**
-     * @return Collection<int, \App\Models\RagChunk>
+     * @return Collection<int, RagChunk>
      */
-    private function retrieveSimilarChunks(array $queryEmbedding, int|array|null $knowledgeBaseFileId = null): Collection
+    private function retrieveSimilarChunks(array $queryEmbedding, int|array|null $knowledgeBaseFileId = null, ?int $limit = null): Collection
     {
-        $maxResults = (int) config('rag.max_results', 4);
+        $maxResults = $limit ?? (int) config('rag.max_results', 4);
         $minSimilarity = (float) config('rag.min_similarity', 0.2);
 
         $vectorString = '['.implode(',', $queryEmbedding).']';
 
         // PostgreSQL pgvector cosine similarity search
-        $query = \App\Models\RagChunk::query()
+        $query = RagChunk::query()
             ->select('*')
             ->selectRaw('1 - (embedding <=> ?) as similarity', [$vectorString])
             ->whereRaw('1 - (embedding <=> ?) >= ?', [$vectorString, $minSimilarity]);

@@ -67,12 +67,12 @@ const footerNavItems: NavItem[] = [
 </script>
 
 <template>
-    <Sidebar collapsible="icon" variant="inset" class="border-r border-border bg-sidebar transition-colors duration-500">
+    <Sidebar collapsible="icon" variant="inset" class="border-r border-border bg-sidebar transition-colors duration-200">
         <SidebarHeader class="border-b border-border py-4">
             <SidebarMenu>
                 <SidebarMenuItem>
                     <SidebarMenuButton size="lg" as-child class="hover:bg-muted/50 transition-all rounded-lg">
-                        <Link :href="dashboard()">
+                        <Link :href="dashboard()" prefetch cache-for="1m">
                             <AppLogo />
                             <span class="font-heading font-extrabold text-foreground ml-3 tracking-tight">Synapse</span>
                         </Link>
